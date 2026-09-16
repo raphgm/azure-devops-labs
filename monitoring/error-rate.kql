@@ -1,0 +1,10 @@
+// From: "Monitoring and Observability on Azure with Azure Monitor and Application Insights"
+// Alert on symptom (error rate) rather than a raw resource metric.
+requests
+| where timestamp > ago(5m)
+| summarize
+    total = count(),
+    failed = countif(success == false)
+    by bin(timestamp, 1m)
+| extend errorRate = todouble(failed) / total * 100
+| where errorRate > 5

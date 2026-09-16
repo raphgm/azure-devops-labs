@@ -1,0 +1,10 @@
+// From: "Monitoring and Observability on Azure with Azure Monitor and Application Insights"
+// Answers "is this us, or is this upstream?" during an incident.
+dependencies
+| where timestamp > ago(30m)
+| summarize
+    avgDuration = avg(duration),
+    failureRate = countif(success == false) * 100.0 / count()
+    by target, bin(timestamp, 5m)
+| where failureRate > 10 or avgDuration > 1000
+| order by timestamp desc

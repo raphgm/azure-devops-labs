@@ -1,0 +1,62 @@
+# CI/CD pipeline to Azure Kubernetes Service (AKS) via GitHub Actions.
+# From: "Building a CI/CD Pipeline to Azure Kubernetes Service (AKS) with GitHub Actions"
+#
+# Setup:
+#   1. Create an Azure AD App Registration and federated credential (OIDC) scoped
+#      to this repo + branch — see the article for the `az ad app federated-credential create` command.
+#   2. Add repo secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+#   3. Attach ACR pull permission to the cluster once: az aks update --attach-acr <registry>.
+#
+# Copy this file to .github/workflows/deploy-aks.yml in your app repo.
+
+name: Deploy to AKS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: myregistry.azurecr.io
+  IMAGE: my-app
+  RESOURCE_GROUP: prod-rg
+  CLUSTER_NAME: prod-aks
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC, no secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name myregistry
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+
+      - name: Roll out the new image
+        run: |
+          kubectl set image deployment/my-app \
+            my-app=${{ env.IMAGE_TAG }} \
+            -n production
+          kubectl rollout status deployment/my-app -n production --timeout=120s
