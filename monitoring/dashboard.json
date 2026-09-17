@@ -1,0 +1,25 @@
+{
+  "_comment": "From: 'Monitoring and Observability on Azure with Azure Monitor and Application Insights'. Import into Azure Monitor Workbooks or adapt the KQL panels for Grafana's Azure Monitor data source.",
+  "panels": [
+    {
+      "title": "Request rate + error rate",
+      "query": "requests | summarize total=count(), failed=countif(success==false) by bin(timestamp, 1m)",
+      "visualization": "timechart"
+    },
+    {
+      "title": "P50 / P95 / P99 latency",
+      "query": "requests | summarize p50=percentile(duration,50), p95=percentile(duration,95), p99=percentile(duration,99) by bin(timestamp, 1m)",
+      "visualization": "timechart"
+    },
+    {
+      "title": "Dependency health",
+      "query": "dependencies | summarize avgDuration=avg(duration), failureRate=countif(success==false)*100.0/count() by target, bin(timestamp, 5m)",
+      "visualization": "table"
+    },
+    {
+      "title": "Deploy markers",
+      "query": "customEvents | where name == 'Deployment'",
+      "visualization": "annotations"
+    }
+  ]
+}
