@@ -4,34 +4,19 @@ Runnable, end-to-end companion code for the Azure articles on [Dumka Esaenwi's t
 
 ## Architecture
 
-```
-                         ┌─────────────────────────────┐
-                         │        GitHub Actions        │
-                         │  test → build → push → OIDC  │
-                         └───────────────┬───────────────┘
-                                         │
-                     ┌───────────────────┼───────────────────┐
-                     ▼                                       ▼
-        ┌─────────────────────────┐            ┌─────────────────────────┐
-        │   terraform/ (VM path)   │            │  kubernetes/ (AKS path)  │
-        │  VNet + LB + 2-3 VMs     │            │  Deployment + Service    │
-        │  running app/ via        │            │  running app/ via ACR    │
-        │  custom_data bootstrap   │            │  image                   │
-        └─────────────┬───────────┘            └─────────────┬───────────┘
-                      │                                       │
-                      └───────────────────┬───────────────────┘
-                                         ▼
-                         ┌─────────────────────────────┐
-                         │   monitoring/ (Azure Monitor  │
-                         │   + Application Insights)     │
-                         │   error-rate + dependency KQL,│
-                         │   alert rule, dashboard        │
-                         └─────────────────────────────┘
-                                         ▲
-                         ┌─────────────────────────────┐
-                         │   scripts/ (cost control)      │
-                         │   Spot VMs, budget alerts       │
-                         └─────────────────────────────┘
+```mermaid
+flowchart TD
+    CI["GitHub Actions<br/>test → build → push → OIDC"]
+    TF["terraform/ (VM path)<br/>VNet + LB + 2-3 VMs<br/>running app/ via custom_data bootstrap"]
+    K8S["kubernetes/ (AKS path)<br/>Deployment + Service<br/>running app/ via ACR image"]
+    MON["monitoring/ (Azure Monitor + App Insights)<br/>error-rate + dependency KQL, alert rule, dashboard"]
+    SCR["scripts/ (cost control)<br/>Spot VMs, budget alerts"]
+
+    CI --> TF
+    CI --> K8S
+    TF --> MON
+    K8S --> MON
+    SCR --> MON
 ```
 
 ## Contents
